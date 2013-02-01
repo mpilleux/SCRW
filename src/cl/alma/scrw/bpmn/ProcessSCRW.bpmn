@@ -1,0 +1,1075 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:activiti="http://activiti.org/bpmn" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:omgdc="http://www.omg.org/spec/DD/20100524/DC" xmlns:omgdi="http://www.omg.org/spec/DD/20100524/DI" typeLanguage="http://www.w3.org/2001/XMLSchema" expressionLanguage="http://www.w3.org/1999/XPath" targetNamespace="http://www.activiti.org/test">
+  <signal id="cancelProcessSignal" name="Cancel Process"></signal>
+  <process id="processSCRW" name="AIV Stations Deployment Verification Process">
+    <startEvent id="startEvent" name="Start" activiti:formKey="newRequestForm">
+      <extensionElements>
+        <activiti:formProperty id="request" name="request" type="string" required="true"></activiti:formProperty>
+        <activiti:formProperty id="actors" name="actors" type="string" required="true"></activiti:formProperty>
+        <activiti:formProperty id="antennas" name="antennas" type="string" required="true"></activiti:formProperty>
+        <activiti:formProperty id="newAntennas" name="newAntennas" type="string"></activiti:formProperty>
+        <activiti:formProperty id="requestTitle" name="requestTitle" type="string" required="true"></activiti:formProperty>
+      </extensionElements>
+    </startEvent>
+    <serviceTask id="createRequestServiceTask" name="Create Request" activiti:class="cl.alma.scrw.bpmn.tasks.CreateRequestServiceTask"></serviceTask>
+    <subProcess id="MainSCRWProcess" name="AIV Stations Deployment Verification Process">
+      <serviceTask id="notifyCreateMailTask" name="Notify Tasks Created" activiti:type="mail">
+        <extensionElements>
+          <activiti:field name="to" expression="${assigneeMail}"></activiti:field>
+          <activiti:field name="from" expression="activiti@localhost"></activiti:field>
+          <activiti:field name="subject" expression="${requestTitle}_New task created"></activiti:field>
+          <activiti:field name="html">
+            <activiti:expression><![CDATA[<html>
+					<body>
+						A new system configuration process was created.<br />
+						You have a new task. Please choose a responsible and proceed to the <a href="${webURL}#myTasks" title="Go to Acknowledge Page Form">Acknowledge Page Form</a> to let the system know the work is in progress.
+						the request is: <br />
+						${request}<br />
+						Request title:<br />
+						${requestTitle}
+					</body>
+				</html>]]></activiti:expression>
+          </activiti:field>
+        </extensionElements>
+        <multiInstanceLoopCharacteristics isSequential="false" activiti:collection="assigneeMailList" activiti:elementVariable="assigneeMail"></multiInstanceLoopCharacteristics>
+      </serviceTask>
+      <subProcess id="NotifyWorkInProgressSubProcess" name="Notify System Work in Progress">
+        <multiInstanceLoopCharacteristics isSequential="false" activiti:collection="assigneeList" activiti:elementVariable="assignee"></multiInstanceLoopCharacteristics>
+        <startEvent id="startevent2" name="Start"></startEvent>
+        <userTask id="acknowledgePageUserTask" name="Acknowledge page ${assignee}" activiti:assignee="${assignee}" activiti:formKey="acknowledgePageForm">
+          <extensionElements>
+            <activiti:formProperty id="request" name="request" type="string"></activiti:formProperty>
+            <activiti:formProperty id="ackPage" name="ackPage" type="boolean" required="true"></activiti:formProperty>
+          </extensionElements>
+        </userTask>
+        <userTask id="setUpFinishedUserTask" name="Setup Finished Page ${assignee}" activiti:assignee="${assignee}" activiti:formKey="setUpFinishedPageForm">
+          <extensionElements>
+            <activiti:formProperty id="request" name="request" type="string"></activiti:formProperty>
+            <activiti:formProperty id="ackFinishPage" name="ackFinishPage" type="boolean" required="true"></activiti:formProperty>
+            <activiti:formProperty id="checkRequired" name="checkRequired" type="boolean" required="true"></activiti:formProperty>
+            <activiti:formProperty id="newAssignee" name="newAssignee" type="string"></activiti:formProperty>
+            <activiti:taskListener event="complete" class="cl.alma.scrw.bpmn.tasks.SetUpFinishedTaskListener"></activiti:taskListener>
+          </extensionElements>
+        </userTask>
+        <endEvent id="endevent2" name="End"></endEvent>
+        <manualTask id="updateConfigurationManualTask" name="The actor update the configuration change"></manualTask>
+      </subProcess>
+      <userTask id="softwareConfigurationUserTask" name="Software Configuration Change Page" activiti:candidateGroups="software" activiti:formKey="softConfForm">
+        <extensionElements>
+          <activiti:formProperty id="changesWS" name="request" type="string"></activiti:formProperty>
+          <activiti:formProperty id="ackSoftConf" name="ackSoftConf" type="boolean" required="true"></activiti:formProperty>
+        </extensionElements>
+      </userTask>
+      <exclusiveGateway id="exclusivegateway3" name="Exclusive Gateway"></exclusiveGateway>
+      <parallelGateway id="parallelgateway2" name="Parallel Gateway"></parallelGateway>
+      <serviceTask id="servicetask2" name="System check for inconsistencies" activiti:class="cl.alma.scrw.bpmn.tasks.WsDelegate">
+        <extensionElements>
+          <activiti:field name="wsdl">
+            <activiti:string>http://urania.osf.alma.cl/ws/checkConsistency?wsdl</activiti:string>
+          </activiti:field>
+          <activiti:field name="operation">
+            <activiti:string>check</activiti:string>
+          </activiti:field>
+          <activiti:field name="returnValue">
+            <activiti:string>incFound</activiti:string>
+          </activiti:field>
+        </extensionElements>
+      </serviceTask>
+      <exclusiveGateway id="exclusivegateway2" name="Exclusive Gateway"></exclusiveGateway>
+      <userTask id="reviewPageUserTask" name="Review Page" activiti:candidateGroups="software" activiti:formKey="reviewPageForm">
+        <extensionElements>
+          <activiti:formProperty id="blockWS" name="blockWS" type="string"></activiti:formProperty>
+          <activiti:formProperty id="unblockAfterCheck" name="unblockAfterCheck" type="string"></activiti:formProperty>
+          <activiti:formProperty id="incFound" name="incFound" type="string"></activiti:formProperty>
+          <activiti:formProperty id="request" name="request" type="string"></activiti:formProperty>
+          <activiti:formProperty id="ackReviewDone" name="ackReviewDone" type="boolean" required="true"></activiti:formProperty>
+        </extensionElements>
+      </userTask>
+      <serviceTask id="NotifyReponsiblesMailTask" name="Notify Reponsibles" activiti:type="mail">
+        <extensionElements>
+          <activiti:field name="to" expression="${assigneeMail}"></activiti:field>
+          <activiti:field name="from" expression="activiti@localhost"></activiti:field>
+          <activiti:field name="subject" expression="${requestTitle}_Tasks created and ready to be executed"></activiti:field>
+          <activiti:field name="html">
+            <activiti:expression><![CDATA[<html>
+					<body>
+						The process is ready to be executed.<br />
+						You have a new task. Proceed to execute HW Configuration.<br />
+						 When you have finished, please fill the <a href="${webURL}#myTasks" title="Go to execution finished page form">Execution finished page form</a> to let the system know the work is done.
+						the request is: <br />
+						${request}<br />
+						Request title:<br />
+						${requestTitle}
+					</body>
+				</html>]]></activiti:expression>
+          </activiti:field>
+        </extensionElements>
+        <multiInstanceLoopCharacteristics isSequential="false" activiti:collection="newAssigneeMailList" activiti:elementVariable="assigneeMail"></multiInstanceLoopCharacteristics>
+      </serviceTask>
+      <serviceTask id="notifySoftwareConfigurationMailTask" name="Notify Software Configuration" activiti:type="mail">
+        <extensionElements>
+          <activiti:field name="to" expression="${softwareEmail}"></activiti:field>
+          <activiti:field name="from" expression="activiti@localhost"></activiti:field>
+          <activiti:field name="subject" expression="${requestTitle}_Software Configuration change page is available"></activiti:field>
+          <activiti:field name="html">
+            <activiti:expression><![CDATA[<html>
+					<body>
+						The <a href="${webURL}#unassignedTasks" title="Go to software configuration chage page">software configuration chage page</a> is available.
+						<br />
+						Please aknowledge the page to allow the system to call the automatic configuration services.
+						<br />
+						This page will show the available configuration pages.						 
+					</body>
+				</html>]]></activiti:expression>
+          </activiti:field>
+        </extensionElements>
+      </serviceTask>
+      <subProcess id="executeJobsSubProcess" name="Execute jobs">
+        <multiInstanceLoopCharacteristics isSequential="false" activiti:collection="newAssigneeList" activiti:elementVariable="assignee"></multiInstanceLoopCharacteristics>
+        <startEvent id="startevent3" name="Start"></startEvent>
+        <userTask id="executionFinishedUserTask" name="Execution Finished Page ${assignee}" activiti:assignee="${assignee}" activiti:formKey="executionFinishedPageForm">
+          <extensionElements>
+            <activiti:formProperty id="request" name="request" type="string"></activiti:formProperty>
+            <activiti:formProperty id="ackEFinishedPage" name="ackEFinishedPage" type="boolean" required="true"></activiti:formProperty>
+            <activiti:formProperty id="ackEFinishedPageComment" name="ackEFinishedPageComment" type="string"></activiti:formProperty>
+            <activiti:taskListener event="complete" class="cl.alma.scrw.bpmn.tasks.ExecuteJobCommentTaskListener"></activiti:taskListener>
+          </extensionElements>
+        </userTask>
+        <endEvent id="endevent4" name="End"></endEvent>
+        <manualTask id="executeHWConfigManualTask" name="Execute HW Configuration"></manualTask>
+      </subProcess>
+      <parallelGateway id="parallelgateway1" name="Parallel Gateway"></parallelGateway>
+      <userTask id="softwareAvailableUserTask" name="Software Available" activiti:candidateGroups="software" activiti:formKey="restartDone">
+        <extensionElements>
+          <activiti:formProperty id="request" name="request" type="string"></activiti:formProperty>
+          <activiti:formProperty id="ackRestart" name="ackRestart" type="boolean" required="true"></activiti:formProperty>
+          <activiti:formProperty id="softwareAvailableComment" name="softwareAvailableComment" type="string"></activiti:formProperty>
+        </extensionElements>
+      </userTask>
+      <serviceTask id="systemRestartMailTask" name="Send Notification: the system is ready to be restarted" activiti:type="mail">
+        <extensionElements>
+          <activiti:field name="to" expression="${softwareEmail}"></activiti:field>
+          <activiti:field name="from" expression="activiti@localhost"></activiti:field>
+          <activiti:field name="subject" expression="${requestTitle}_The system is ready to be restarted"></activiti:field>
+          <activiti:field name="html">
+            <activiti:expression><![CDATA[<html>
+					<body>
+						The system is ready to be restarted.
+						<br />
+						Proceed to restart the system and notify the restart was done at the <a href="${webURL}#unassignedTasks" title="Go to software available page">Software Available Page</a>
+						<br />
+					</body>
+				</html>]]></activiti:expression>
+          </activiti:field>
+        </extensionElements>
+      </serviceTask>
+      <serviceTask id="performCheckMailTask" name="Notify: Perform Check (for those tasks marked as with check required)" activiti:type="mail">
+        <extensionElements>
+          <activiti:field name="to" expression="${assigneeMail}"></activiti:field>
+          <activiti:field name="from" expression="activiti@localhost"></activiti:field>
+          <activiti:field name="subject" expression="${requestTitle}_Perform check"></activiti:field>
+          <activiti:field name="html">
+            <activiti:expression><![CDATA[<html>
+					<body>
+						The system restart is done. You can now perform a check on your work.
+						<br />
+						Please notify the system when the check is done at the <a href="${webURL}#myTasks" title="Check Done Page">Check Done Page</a>.
+					</body>
+				</html>]]></activiti:expression>
+          </activiti:field>
+        </extensionElements>
+        <multiInstanceLoopCharacteristics isSequential="false" activiti:collection="checkRequiredMailList" activiti:elementVariable="assigneeMail"></multiInstanceLoopCharacteristics>
+      </serviceTask>
+      <subProcess id="CheckRequiredSubProcess" name="Check Required">
+        <multiInstanceLoopCharacteristics isSequential="false" activiti:collection="checkRequiredList" activiti:elementVariable="assignee"></multiInstanceLoopCharacteristics>
+        <startEvent id="startevent4" name="Start"></startEvent>
+        <userTask id="checkDoneUserTask" name="Check Done Page ${assignee}" activiti:assignee="${assignee}" activiti:formKey="ackCheckDoneForm">
+          <extensionElements>
+            <activiti:formProperty id="request" name="request" type="string"></activiti:formProperty>
+            <activiti:formProperty id="ackCheckDone" name="ackCheckDone" type="boolean" required="true"></activiti:formProperty>
+            <activiti:formProperty id="checkDoneComment" name="checkDoneComment" type="string"></activiti:formProperty>
+            <activiti:taskListener event="complete" class="cl.alma.scrw.bpmn.tasks.CheckCommentTaskListener"></activiti:taskListener>
+          </extensionElements>
+        </userTask>
+        <endEvent id="endevent7" name="End"></endEvent>
+        <manualTask id="performCheckManualTask" name="Perform Check"></manualTask>
+      </subProcess>
+      <serviceTask id="reportServiceTask" name="Automatic Report Generation" activiti:class="cl.alma.scrw.bpmn.tasks.GenerateReportServiceTask"></serviceTask>
+      <endEvent id="endevent3" name="End"></endEvent>
+      <manualTask id="performRestartManualTask" name="ADC SW Team coordinates and perform a restart, if needed"></manualTask>
+      <parallelGateway id="parallelgateway3" name="Parallel Gateway"></parallelGateway>
+      <subProcess id="configureAntennaSubProcess" name="SW Team configure antenna(s)">
+        <multiInstanceLoopCharacteristics isSequential="false" activiti:collection="newAntennaList" activiti:elementVariable="antenna"></multiInstanceLoopCharacteristics>
+        <startEvent id="startevent5" name="Start"></startEvent>
+        <manualTask id="configureAntennaManualTask" name="Configure antenna's ${antenna} switch "></manualTask>
+        <userTask id="executionAntennaUserTask" name="Execution of antena ${antenna} Finished Page" activiti:candidateGroups="software" activiti:formKey="executionFinishedPageForm">
+          <extensionElements>
+            <activiti:formProperty id="request" name="request" type="string"></activiti:formProperty>
+            <activiti:formProperty id="ackEFinishedPage" name="ackEFinishedPage" type="boolean" required="true"></activiti:formProperty>
+            <activiti:formProperty id="ackEPageComment" name="ackEPageComment" type="string"></activiti:formProperty>
+            <activiti:taskListener event="complete" class="cl.alma.scrw.bpmn.tasks.AntennaSwitchCommentTaskListener"></activiti:taskListener>
+          </extensionElements>
+        </userTask>
+        <endEvent id="endevent8" name="End"></endEvent>
+      </subProcess>
+      <exclusiveGateway id="exclusivegateway5" name="Exclusive Gateway"></exclusiveGateway>
+      <exclusiveGateway id="exclusivegateway6" name="Exclusive Gateway"></exclusiveGateway>
+      <startEvent id="startevent6" name="Start"></startEvent>
+      <serviceTask id="createTasksServiceTask" name="Create Tasks" activiti:class="cl.alma.scrw.bpmn.tasks.AssignTaskCheckServiceTask"></serviceTask>
+      <serviceTask id="notifyCoordinatorMailTask" name="Notify the coordinator the request is finished" activiti:class="cl.alma.scrw.bpmn.tasks.MailActivityBehavior">
+        <extensionElements>
+          <activiti:field name="to">
+            <activiti:expression>${coordinatorEmail}</activiti:expression>
+          </activiti:field>
+          <activiti:field name="from">
+            <activiti:string>activiti@localhost</activiti:string>
+          </activiti:field>
+          <activiti:field name="subject">
+            <activiti:expression>${requestTitle}_Final Report</activiti:expression>
+          </activiti:field>
+          <activiti:field name="attachment">
+            <activiti:expression>${finalReportPath}</activiti:expression>
+          </activiti:field>
+          <activiti:field name="html">
+            <activiti:expression>&lt;html&gt;
+					&lt;body&gt;
+						Attached is the final report of ${requestTitle}.
+					&lt;/body&gt;
+				&lt;/html&gt;</activiti:expression>
+          </activiti:field>
+        </extensionElements>
+      </serviceTask>
+      <serviceTask id="blockWS1" name="BLOCK" activiti:class="cl.alma.scrw.bpmn.tasks.WsDelegate">
+        <extensionElements>
+          <activiti:field name="wsdl">
+            <activiti:string>http://urania.osf.alma.cl/ws/blockUnblock?wsdl</activiti:string>
+          </activiti:field>
+          <activiti:field name="operation">
+            <activiti:string>block</activiti:string>
+          </activiti:field>
+          <activiti:field name="returnValue">
+            <activiti:string>blockWS</activiti:string>
+          </activiti:field>
+        </extensionElements>
+      </serviceTask>
+      <serviceTask id="unblockWS1" name="UNBLOCK" activiti:class="cl.alma.scrw.bpmn.tasks.WsDelegate">
+        <extensionElements>
+          <activiti:field name="wsdl">
+            <activiti:string>http://urania.osf.alma.cl/ws/blockUnblock?wsdl</activiti:string>
+          </activiti:field>
+          <activiti:field name="operation">
+            <activiti:string>unblock</activiti:string>
+          </activiti:field>
+          <activiti:field name="returnValue">
+            <activiti:string>unblockAfterCheck</activiti:string>
+          </activiti:field>
+        </extensionElements>
+      </serviceTask>
+      <serviceTask id="blockWS2" name="BLOCK" activiti:class="cl.alma.scrw.bpmn.tasks.WsDelegate">
+        <extensionElements>
+          <activiti:field name="wsdl">
+            <activiti:string>http://urania.osf.alma.cl/ws/blockUnblock?wsdl</activiti:string>
+          </activiti:field>
+          <activiti:field name="operation">
+            <activiti:string>block</activiti:string>
+          </activiti:field>
+          <activiti:field name="returnValue">
+            <activiti:string>blockWS</activiti:string>
+          </activiti:field>
+        </extensionElements>
+      </serviceTask>
+      <subProcess id="GETChangessubProcess" name="GET changes">
+        <serviceTask id="getChangesServiceTask" name="GET Changes WS" activiti:class="cl.alma.scrw.bpmn.tasks.WsDelegate">
+          <extensionElements>
+            <activiti:field name="wsdl">
+              <activiti:string>http://urania.osf.alma.cl/ws/changesPage?wsdl</activiti:string>
+            </activiti:field>
+            <activiti:field name="operation">
+              <activiti:string>changes</activiti:string>
+            </activiti:field>
+            <activiti:field name="returnValue">
+              <activiti:string>changesWS</activiti:string>
+            </activiti:field>
+          </extensionElements>
+        </serviceTask>
+        <startEvent id="startevent7" name="Start"></startEvent>
+        <endEvent id="endevent9" name="End"></endEvent>
+        <userTask id="getChangesError" name="Get changes errors" activiti:candidateGroups="software" activiti:formKey="reviewPageForm">
+          <extensionElements>
+            <activiti:formProperty id="request" name="request" type="string"></activiti:formProperty>
+            <activiti:formProperty id="changesWS" name="changesWS" type="string"></activiti:formProperty>
+          </extensionElements>
+        </userTask>
+        <exclusiveGateway id="exclusivegateway11" name="Exclusive Gateway"></exclusiveGateway>
+      </subProcess>
+      <subProcess id="commitSubProcess" name="COMMIT">
+        <serviceTask id="automaticConfServiceTask" name="The system calls the automatic configuration services" activiti:class="cl.alma.scrw.bpmn.tasks.WsDelegate">
+          <extensionElements>
+            <activiti:field name="wsdl">
+              <activiti:string>http://urania.osf.alma.cl/ws/applyChanges?wsdl</activiti:string>
+            </activiti:field>
+            <activiti:field name="operation">
+              <activiti:string>apply</activiti:string>
+            </activiti:field>
+            <activiti:field name="returnValue">
+              <activiti:string>applyWS</activiti:string>
+            </activiti:field>
+          </extensionElements>
+        </serviceTask>
+        <startEvent id="startevent8" name="Start"></startEvent>
+        <exclusiveGateway id="exclusivegateway12" name="Exclusive Gateway"></exclusiveGateway>
+        <endEvent id="endevent10" name="End"></endEvent>
+        <userTask id="automaticConfError" name="automatic configuration services errors" activiti:candidateGroups="software" activiti:formKey="reviewPageForm">
+          <extensionElements>
+            <activiti:formProperty id="request" name="request" type="string"></activiti:formProperty>
+            <activiti:formProperty id="applyWS" name="applyWS" type="string"></activiti:formProperty>
+          </extensionElements>
+        </userTask>
+        <serviceTask id="unblockWS2" name="UNBLOCK" activiti:class="cl.alma.scrw.bpmn.tasks.WsDelegate">
+          <extensionElements>
+            <activiti:field name="wsdl">
+              <activiti:string>http://urania.osf.alma.cl/ws/blockUnblock?wsdl</activiti:string>
+            </activiti:field>
+            <activiti:field name="operation">
+              <activiti:string>unblock</activiti:string>
+            </activiti:field>
+            <activiti:field name="returnValue">
+              <activiti:string>applyWS</activiti:string>
+            </activiti:field>
+          </extensionElements>
+        </serviceTask>
+      </subProcess>
+      <exclusiveGateway id="exclusivegateway13" name="Exclusive Gateway"></exclusiveGateway>
+      <sequenceFlow id="flow27" name="" sourceRef="commitSubProcess" targetRef="parallelgateway2"></sequenceFlow>
+      <sequenceFlow id="flow29" name="" sourceRef="parallelgateway2" targetRef="systemRestartMailTask"></sequenceFlow>
+      <sequenceFlow id="flow87" name="" sourceRef="exclusivegateway3" targetRef="performCheckMailTask">
+        <conditionExpression xsi:type="tFormalExpression"><![CDATA[
+     		${chkReq > 0}
+     	]]></conditionExpression>
+      </sequenceFlow>
+      <sequenceFlow id="flow16" name="" sourceRef="servicetask2" targetRef="exclusivegateway2"></sequenceFlow>
+      <sequenceFlow id="flow17" name="" sourceRef="exclusivegateway2" targetRef="unblockWS1">
+        <conditionExpression xsi:type="tFormalExpression"><![CDATA[
+     		${incFound != 'SUCCESS'}
+     	]]></conditionExpression>
+      </sequenceFlow>
+      <sequenceFlow id="flow18" name="" sourceRef="exclusivegateway2" targetRef="createTasksServiceTask">
+        <conditionExpression xsi:type="tFormalExpression"><![CDATA[
+     		${incFound == 'SUCCESS'}
+     	]]></conditionExpression>
+      </sequenceFlow>
+      <sequenceFlow id="flow28" name="" sourceRef="executeJobsSubProcess" targetRef="parallelgateway2"></sequenceFlow>
+      <sequenceFlow id="flow39" name="" sourceRef="notifyCoordinatorMailTask" targetRef="endevent3"></sequenceFlow>
+      <sequenceFlow id="flow40" name="" sourceRef="reportServiceTask" targetRef="notifyCoordinatorMailTask"></sequenceFlow>
+      <sequenceFlow id="flow47" name="" sourceRef="performRestartManualTask" targetRef="softwareAvailableUserTask"></sequenceFlow>
+      <sequenceFlow id="flow48" name="" sourceRef="systemRestartMailTask" targetRef="performRestartManualTask"></sequenceFlow>
+      <sequenceFlow id="flow54" name="" sourceRef="parallelgateway3" targetRef="NotifyWorkInProgressSubProcess"></sequenceFlow>
+      <sequenceFlow id="flow60" name="" sourceRef="parallelgateway3" targetRef="exclusivegateway5"></sequenceFlow>
+      <sequenceFlow id="flow64" name="" sourceRef="exclusivegateway5" targetRef="configureAntennaSubProcess">
+        <conditionExpression xsi:type="tFormalExpression"><![CDATA[
+     		${countNewAntennaList > 0}
+     	]]></conditionExpression>
+      </sequenceFlow>
+      <sequenceFlow id="flow65" name="" sourceRef="exclusivegateway5" targetRef="exclusivegateway6">
+        <conditionExpression xsi:type="tFormalExpression"><![CDATA[
+     		${countNewAntennaList == 0}
+     	]]></conditionExpression>
+      </sequenceFlow>
+      <sequenceFlow id="flow66" name="" sourceRef="exclusivegateway6" targetRef="parallelgateway2"></sequenceFlow>
+      <sequenceFlow id="flow67" name="" sourceRef="configureAntennaSubProcess" targetRef="exclusivegateway6"></sequenceFlow>
+      <sequenceFlow id="flow79" name="" sourceRef="startevent6" targetRef="notifyCreateMailTask"></sequenceFlow>
+      <sequenceFlow id="flow80" name="" sourceRef="notifyCreateMailTask" targetRef="parallelgateway3"></sequenceFlow>
+      <sequenceFlow id="flow81" name="" sourceRef="parallelgateway1" targetRef="GETChangessubProcess"></sequenceFlow>
+      <sequenceFlow id="flow83" name="" sourceRef="parallelgateway1" targetRef="NotifyReponsiblesMailTask"></sequenceFlow>
+      <sequenceFlow id="flow84" name="" sourceRef="NotifyReponsiblesMailTask" targetRef="executeJobsSubProcess"></sequenceFlow>
+      <sequenceFlow id="flow85" name="" sourceRef="createTasksServiceTask" targetRef="parallelgateway1"></sequenceFlow>
+      <sequenceFlow id="flow88" name="" sourceRef="softwareAvailableUserTask" targetRef="exclusivegateway3"></sequenceFlow>
+      <sequenceFlow id="flow90" name="" sourceRef="NotifyWorkInProgressSubProcess" targetRef="blockWS1"></sequenceFlow>
+      <sequenceFlow id="flow91" name="" sourceRef="blockWS1" targetRef="servicetask2"></sequenceFlow>
+      <sequenceFlow id="flow98" name="" sourceRef="unblockWS1" targetRef="reviewPageUserTask"></sequenceFlow>
+      <sequenceFlow id="flow99" name="" sourceRef="reviewPageUserTask" targetRef="blockWS2"></sequenceFlow>
+      <sequenceFlow id="flow93" name="" sourceRef="blockWS2" targetRef="servicetask2"></sequenceFlow>
+      <sequenceFlow id="flow101" name="" sourceRef="performCheckMailTask" targetRef="CheckRequiredSubProcess"></sequenceFlow>
+      <sequenceFlow id="flow107" name="" sourceRef="notifySoftwareConfigurationMailTask" targetRef="softwareConfigurationUserTask"></sequenceFlow>
+      <sequenceFlow id="flow108" name="" sourceRef="GETChangessubProcess" targetRef="notifySoftwareConfigurationMailTask"></sequenceFlow>
+      <sequenceFlow id="flow124" name="" sourceRef="exclusivegateway3" targetRef="exclusivegateway13">
+        <conditionExpression xsi:type="tFormalExpression"><![CDATA[
+     		${chkReq <= 0}
+     	]]></conditionExpression>
+      </sequenceFlow>
+      <sequenceFlow id="flow125" name="" sourceRef="CheckRequiredSubProcess" targetRef="exclusivegateway13"></sequenceFlow>
+      <sequenceFlow id="flow126" name="" sourceRef="exclusivegateway13" targetRef="reportServiceTask"></sequenceFlow>
+      <sequenceFlow id="flow128" name="" sourceRef="softwareConfigurationUserTask" targetRef="commitSubProcess"></sequenceFlow>
+    </subProcess>
+    <boundaryEvent id="CancelBoundarySignal" name="Cancel Process" cancelActivity="true" attachedToRef="MainSCRWProcess">
+      <signalEventDefinition signalRef="cancelProcessSignal"></signalEventDefinition>
+    </boundaryEvent>
+    <serviceTask id="processCancelledMailTask" name="Notify the process was cancelled" activiti:type="mail">
+      <extensionElements>
+        <activiti:field name="to" expression="${assigneeMail}"></activiti:field>
+        <activiti:field name="from" expression="activiti@localhost"></activiti:field>
+        <activiti:field name="subject" expression="${requestTitle}_Cancelation Report"></activiti:field>
+        <activiti:field name="html">
+          <activiti:expression><![CDATA[<html>
+					<body>
+						The process was cancelled.
+						<br />
+						Reason:<br />
+						${cancelComment}
+					</body>
+				</html>]]></activiti:expression>
+        </activiti:field>
+      </extensionElements>
+      <multiInstanceLoopCharacteristics isSequential="false" activiti:collection="fullMailList" activiti:elementVariable="assigneeMail"></multiInstanceLoopCharacteristics>
+    </serviceTask>
+    <userTask id="cancelDescriptionUserTask" name="Specify cancelation reason" activiti:candidateGroups="software" activiti:formKey="informCancel">
+      <extensionElements>
+        <activiti:formProperty id="request" name="request" type="string"></activiti:formProperty>
+        <activiti:formProperty id="cancelComment" name="cancelComment" type="string" required="true"></activiti:formProperty>
+      </extensionElements>
+    </userTask>
+    <endEvent id="endSucess" name="End"></endEvent>
+    <endEvent id="endCancelled" name="End"></endEvent>
+    <subProcess id="subprocess2" name="UNBLOCK">
+      <userTask id="unblockErrorUserTask" name="Unblock error" activiti:candidateGroups="software" activiti:formKey="reviewPageForm">
+        <extensionElements>
+          <activiti:formProperty id="request" name="request" type="string"></activiti:formProperty>
+          <activiti:formProperty id="unblockFinishCancel" name="unblockFinishCancel" type="string"></activiti:formProperty>
+        </extensionElements>
+      </userTask>
+      <exclusiveGateway id="exclusivegateway14" name="Exclusive Gateway"></exclusiveGateway>
+      <endEvent id="endevent11" name="End"></endEvent>
+      <serviceTask id="unblockWS3" name="UNBLOCK" activiti:class="cl.alma.scrw.bpmn.tasks.WsDelegate">
+        <extensionElements>
+          <activiti:field name="wsdl">
+            <activiti:string>http://urania.osf.alma.cl/ws/blockUnblock?wsdl</activiti:string>
+          </activiti:field>
+          <activiti:field name="operation">
+            <activiti:string>unblock</activiti:string>
+          </activiti:field>
+          <activiti:field name="returnValue">
+            <activiti:string>unblockFinishCancel</activiti:string>
+          </activiti:field>
+        </extensionElements>
+      </serviceTask>
+      <startEvent id="startevent9" name="Start"></startEvent>
+      <sequenceFlow id="flow129" name="" sourceRef="exclusivegateway14" targetRef="unblockErrorUserTask">
+        <conditionExpression xsi:type="tFormalExpression"><![CDATA[
+     		${unblockFinishCancel != 'SUCCESS' }
+     		]]></conditionExpression>
+      </sequenceFlow>
+      <sequenceFlow id="flow130" name="" sourceRef="exclusivegateway14" targetRef="endevent11">
+        <conditionExpression xsi:type="tFormalExpression"><![CDATA[
+     		${unblockFinishCancel == 'SUCCESS' }
+     		]]></conditionExpression>
+      </sequenceFlow>
+      <sequenceFlow id="flow96" name="" sourceRef="unblockWS3" targetRef="exclusivegateway14"></sequenceFlow>
+      <sequenceFlow id="flow131" name="" sourceRef="unblockErrorUserTask" targetRef="unblockWS3"></sequenceFlow>
+      <sequenceFlow id="flow133" name="" sourceRef="startevent9" targetRef="unblockWS3"></sequenceFlow>
+    </subProcess>
+    <boundaryEvent id="CancelBoundarySignal2" name="Re do Cancel Process" cancelActivity="true" attachedToRef="subprocess2">
+      <signalEventDefinition signalRef="cancelProcessSignal"></signalEventDefinition>
+    </boundaryEvent>
+    <sequenceFlow id="flow127" name="" sourceRef="unblockWS2" targetRef="exclusivegateway12"></sequenceFlow>
+    <sequenceFlow id="flow106" name="" sourceRef="startevent7" targetRef="getChangesServiceTask"></sequenceFlow>
+    <sequenceFlow id="flow112" name="" sourceRef="getChangesServiceTask" targetRef="exclusivegateway11"></sequenceFlow>
+    <sequenceFlow id="flow115" name="" sourceRef="getChangesError" targetRef="getChangesServiceTask"></sequenceFlow>
+    <sequenceFlow id="flow113" name="" sourceRef="exclusivegateway11" targetRef="endevent9">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[
+     		${changesWS.toString().contains( '<changes>' ) == 'true' }
+     		]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="flow114" name="" sourceRef="exclusivegateway11" targetRef="getChangesError">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[
+     		${changesWS.toString().contains( '<changes>' ) != 'true' }
+     		]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="flow116" name="" sourceRef="startevent8" targetRef="automaticConfServiceTask"></sequenceFlow>
+    <sequenceFlow id="flow117" name="" sourceRef="automaticConfServiceTask" targetRef="unblockWS2"></sequenceFlow>
+    <sequenceFlow id="flow118" name="" sourceRef="exclusivegateway12" targetRef="endevent10">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[
+     		${applyWS == 'SUCCESS' }
+     		]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="flow120" name="" sourceRef="automaticConfError" targetRef="automaticConfServiceTask"></sequenceFlow>
+    <sequenceFlow id="flow121" name="" sourceRef="exclusivegateway12" targetRef="automaticConfError">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[
+     		${applyWS != 'SUCCESS' }
+     		]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="flow74" name="" sourceRef="processCancelledMailTask" targetRef="endCancelled"></sequenceFlow>
+    <sequenceFlow id="flow73" name="" sourceRef="cancelDescriptionUserTask" targetRef="processCancelledMailTask"></sequenceFlow>
+    <sequenceFlow id="flow7" name="" sourceRef="setUpFinishedUserTask" targetRef="endevent2"></sequenceFlow>
+    <sequenceFlow id="flow41" name="" sourceRef="startevent2" targetRef="acknowledgePageUserTask"></sequenceFlow>
+    <sequenceFlow id="flow43" name="" sourceRef="acknowledgePageUserTask" targetRef="updateConfigurationManualTask"></sequenceFlow>
+    <sequenceFlow id="flow44" name="" sourceRef="updateConfigurationManualTask" targetRef="setUpFinishedUserTask"></sequenceFlow>
+    <sequenceFlow id="flow22" name="" sourceRef="executionFinishedUserTask" targetRef="endevent4"></sequenceFlow>
+    <sequenceFlow id="flow45" name="" sourceRef="executeHWConfigManualTask" targetRef="executionFinishedUserTask"></sequenceFlow>
+    <sequenceFlow id="flow46" name="" sourceRef="startevent3" targetRef="executeHWConfigManualTask"></sequenceFlow>
+    <sequenceFlow id="flow35" name="" sourceRef="checkDoneUserTask" targetRef="endevent7"></sequenceFlow>
+    <sequenceFlow id="flow49" name="" sourceRef="startevent4" targetRef="performCheckManualTask"></sequenceFlow>
+    <sequenceFlow id="flow50" name="" sourceRef="performCheckManualTask" targetRef="checkDoneUserTask"></sequenceFlow>
+    <sequenceFlow id="flow55" name="" sourceRef="startevent5" targetRef="configureAntennaManualTask"></sequenceFlow>
+    <sequenceFlow id="flow56" name="" sourceRef="configureAntennaManualTask" targetRef="executionAntennaUserTask"></sequenceFlow>
+    <sequenceFlow id="flow58" name="" sourceRef="executionAntennaUserTask" targetRef="endevent8"></sequenceFlow>
+    <sequenceFlow id="flow68" name="" sourceRef="startEvent" targetRef="createRequestServiceTask"></sequenceFlow>
+    <sequenceFlow id="flow86" name="" sourceRef="createRequestServiceTask" targetRef="MainSCRWProcess"></sequenceFlow>
+    <sequenceFlow id="flow94" name="" sourceRef="MainSCRWProcess" targetRef="endSucess"></sequenceFlow>
+    <sequenceFlow id="flow97" name="" sourceRef="CancelBoundarySignal" targetRef="subprocess2"></sequenceFlow>
+    <sequenceFlow id="flow132" name="" sourceRef="subprocess2" targetRef="cancelDescriptionUserTask"></sequenceFlow>
+    <sequenceFlow id="flow134" name="" sourceRef="CancelBoundarySignal2" targetRef="subprocess2"></sequenceFlow>
+  </process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_processSCRW">
+    <bpmndi:BPMNPlane bpmnElement="processSCRW" id="BPMNPlane_processSCRW">
+      <bpmndi:BPMNShape bpmnElement="startEvent" id="BPMNShape_startEvent">
+        <omgdc:Bounds height="35" width="35" x="120" y="20"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="createRequestServiceTask" id="BPMNShape_createRequestServiceTask">
+        <omgdc:Bounds height="55" width="105" x="344" y="9"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="MainSCRWProcess" id="BPMNShape_MainSCRWProcess" isExpanded="true">
+        <omgdc:Bounds height="1351" width="1206" x="90" y="210"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="notifyCreateMailTask" id="BPMNShape_notifyCreateMailTask">
+        <omgdc:Bounds height="79" width="105" x="594" y="266"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="NotifyWorkInProgressSubProcess" id="BPMNShape_NotifyWorkInProgressSubProcess" isExpanded="true">
+        <omgdc:Bounds height="203" width="469" x="506" y="425"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="startevent2" id="BPMNShape_startevent2">
+        <omgdc:Bounds height="35" width="35" x="516" y="502"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="acknowledgePageUserTask" id="BPMNShape_acknowledgePageUserTask">
+        <omgdc:Bounds height="55" width="105" x="584" y="492"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="setUpFinishedUserTask" id="BPMNShape_setUpFinishedUserTask">
+        <omgdc:Bounds height="55" width="105" x="854" y="492"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="endevent2" id="BPMNShape_endevent2">
+        <omgdc:Bounds height="35" width="35" x="889" y="583"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="updateConfigurationManualTask" id="BPMNShape_updateConfigurationManualTask">
+        <omgdc:Bounds height="55" width="105" x="724" y="492"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="softwareConfigurationUserTask" id="BPMNShape_softwareConfigurationUserTask">
+        <omgdc:Bounds height="68" width="105" x="615" y="982"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="exclusivegateway3" id="BPMNShape_exclusivegateway3">
+        <omgdc:Bounds height="40" width="40" x="1065" y="1090"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="parallelgateway2" id="BPMNShape_parallelgateway2">
+        <omgdc:Bounds height="40" width="40" x="868" y="832"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="servicetask2" id="BPMNShape_servicetask2">
+        <omgdc:Bounds height="55" width="105" x="216" y="499"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="exclusivegateway2" id="BPMNShape_exclusivegateway2">
+        <omgdc:Bounds height="40" width="40" x="128" y="506"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="reviewPageUserTask" id="BPMNShape_reviewPageUserTask">
+        <omgdc:Bounds height="55" width="105" x="216" y="307"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="NotifyReponsiblesMailTask" id="BPMNShape_NotifyReponsiblesMailTask">
+        <omgdc:Bounds height="81" width="105" x="216" y="812"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="notifySoftwareConfigurationMailTask" id="BPMNShape_notifySoftwareConfigurationMailTask">
+        <omgdc:Bounds height="55" width="105" x="459" y="988"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="executeJobsSubProcess" id="BPMNShape_executeJobsSubProcess" isExpanded="true">
+        <omgdc:Bounds height="141" width="432" x="384" y="782"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="startevent3" id="BPMNShape_startevent3">
+        <omgdc:Bounds height="35" width="35" x="410" y="838"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="executionFinishedUserTask" id="BPMNShape_executionFinishedUserTask">
+        <omgdc:Bounds height="55" width="105" x="620" y="828"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="endevent4" id="BPMNShape_endevent4">
+        <omgdc:Bounds height="35" width="35" x="760" y="838"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="executeHWConfigManualTask" id="BPMNShape_executeHWConfigManualTask">
+        <omgdc:Bounds height="55" width="105" x="480" y="828"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="parallelgateway1" id="BPMNShape_parallelgateway1">
+        <omgdc:Bounds height="40" width="40" x="128" y="832"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="softwareAvailableUserTask" id="BPMNShape_softwareAvailableUserTask">
+        <omgdc:Bounds height="55" width="105" x="1141" y="934"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="systemRestartMailTask" id="BPMNShape_systemRestartMailTask">
+        <omgdc:Bounds height="83" width="105" x="985" y="811"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="performCheckMailTask" id="BPMNShape_performCheckMailTask">
+        <omgdc:Bounds height="114" width="105" x="1135" y="1137"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="CheckRequiredSubProcess" id="BPMNShape_CheckRequiredSubProcess" isExpanded="true">
+        <omgdc:Bounds height="211" width="205" x="1085" y="1297"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="startevent4" id="BPMNShape_startevent4">
+        <omgdc:Bounds height="35" width="35" x="1101" y="1337"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="checkDoneUserTask" id="BPMNShape_checkDoneUserTask">
+        <omgdc:Bounds height="55" width="105" x="1170" y="1427"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="endevent7" id="BPMNShape_endevent7">
+        <omgdc:Bounds height="35" width="35" x="1105" y="1437"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="performCheckManualTask" id="BPMNShape_performCheckManualTask">
+        <omgdc:Bounds height="55" width="105" x="1170" y="1327"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="reportServiceTask" id="BPMNShape_reportServiceTask">
+        <omgdc:Bounds height="55" width="105" x="821" y="1375"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="endevent3" id="BPMNShape_endevent3">
+        <omgdc:Bounds height="35" width="35" x="531" y="1385"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="performRestartManualTask" id="BPMNShape_performRestartManualTask">
+        <omgdc:Bounds height="83" width="105" x="1141" y="811"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="parallelgateway3" id="BPMNShape_parallelgateway3">
+        <omgdc:Bounds height="40" width="40" x="875" y="361"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="configureAntennaSubProcess" id="BPMNShape_configureAntennaSubProcess" isExpanded="true">
+        <omgdc:Bounds height="319" width="205" x="1035" y="420"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="startevent5" id="BPMNShape_startevent5">
+        <omgdc:Bounds height="35" width="35" x="1135" y="446"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="configureAntennaManualTask" id="BPMNShape_configureAntennaManualTask">
+        <omgdc:Bounds height="55" width="105" x="1100" y="506"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="executionAntennaUserTask" id="BPMNShape_executionAntennaUserTask">
+        <omgdc:Bounds height="72" width="105" x="1100" y="596"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="endevent8" id="BPMNShape_endevent8">
+        <omgdc:Bounds height="35" width="35" x="1135" y="686"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="exclusivegateway5" id="BPMNShape_exclusivegateway5">
+        <omgdc:Bounds height="40" width="40" x="985" y="361"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="exclusivegateway6" id="BPMNShape_exclusivegateway6">
+        <omgdc:Bounds height="40" width="40" x="985" y="747"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="startevent6" id="BPMNShape_startevent6">
+        <omgdc:Bounds height="35" width="35" x="459" y="288"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="createTasksServiceTask" id="BPMNShape_createTasksServiceTask">
+        <omgdc:Bounds height="55" width="105" x="96" y="680"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="notifyCoordinatorMailTask" id="BPMNShape_notifyCoordinatorMailTask">
+        <omgdc:Bounds height="74" width="105" x="631" y="1366"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="blockWS1" id="BPMNShape_blockWS1">
+        <omgdc:Bounds height="55" width="105" x="355" y="499"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="unblockWS1" id="BPMNShape_unblockWS1">
+        <omgdc:Bounds height="55" width="105" x="96" y="410"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="blockWS2" id="BPMNShape_blockWS2">
+        <omgdc:Bounds height="55" width="105" x="216" y="410"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="GETChangessubProcess" id="BPMNShape_GETChangessubProcess" isExpanded="true">
+        <omgdc:Bounds height="281" width="233" x="190" y="957"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="getChangesServiceTask" id="BPMNShape_getChangesServiceTask">
+        <omgdc:Bounds height="55" width="105" x="212" y="1034"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="startevent7" id="BPMNShape_startevent7">
+        <omgdc:Bounds height="35" width="35" x="247" y="977"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="endevent9" id="BPMNShape_endevent9">
+        <omgdc:Bounds height="35" width="35" x="202" y="1187"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="getChangesError" id="BPMNShape_getChangesError">
+        <omgdc:Bounds height="55" width="105" x="302" y="1157"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="exclusivegateway11" id="BPMNShape_exclusivegateway11">
+        <omgdc:Bounds height="40" width="40" x="244" y="1117"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="commitSubProcess" id="BPMNShape_commitSubProcess" isExpanded="true">
+        <omgdc:Bounds height="381" width="227" x="775" y="957"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="automaticConfServiceTask" id="BPMNShape_automaticConfServiceTask">
+        <omgdc:Bounds height="77" width="105" x="791" y="1037"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="startevent8" id="BPMNShape_startevent8">
+        <omgdc:Bounds height="35" width="35" x="826" y="977"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="exclusivegateway12" id="BPMNShape_exclusivegateway12">
+        <omgdc:Bounds height="40" width="40" x="823" y="1207"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="endevent10" id="BPMNShape_endevent10">
+        <omgdc:Bounds height="35" width="35" x="791" y="1277"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="automaticConfError" id="BPMNShape_automaticConfError">
+        <omgdc:Bounds height="71" width="105" x="881" y="1249"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="unblockWS2" id="BPMNShape_unblockWS2">
+        <omgdc:Bounds height="55" width="105" x="791" y="1137"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="exclusivegateway13" id="BPMNShape_exclusivegateway13">
+        <omgdc:Bounds height="40" width="40" x="1017" y="1382"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="flow27" id="BPMNEdge_flow27">
+        <omgdi:waypoint x="888" y="957"></omgdi:waypoint>
+        <omgdi:waypoint x="888" y="872"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow29" id="BPMNEdge_flow29">
+        <omgdi:waypoint x="908" y="852"></omgdi:waypoint>
+        <omgdi:waypoint x="985" y="852"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow87" id="BPMNEdge_flow87">
+        <omgdi:waypoint x="1105" y="1110"></omgdi:waypoint>
+        <omgdi:waypoint x="1187" y="1109"></omgdi:waypoint>
+        <omgdi:waypoint x="1187" y="1137"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow16" id="BPMNEdge_flow16">
+        <omgdi:waypoint x="216" y="526"></omgdi:waypoint>
+        <omgdi:waypoint x="168" y="526"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow17" id="BPMNEdge_flow17">
+        <omgdi:waypoint x="148" y="506"></omgdi:waypoint>
+        <omgdi:waypoint x="148" y="465"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow18" id="BPMNEdge_flow18">
+        <omgdi:waypoint x="148" y="546"></omgdi:waypoint>
+        <omgdi:waypoint x="148" y="680"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow28" id="BPMNEdge_flow28">
+        <omgdi:waypoint x="816" y="852"></omgdi:waypoint>
+        <omgdi:waypoint x="868" y="852"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow39" id="BPMNEdge_flow39">
+        <omgdi:waypoint x="631" y="1403"></omgdi:waypoint>
+        <omgdi:waypoint x="566" y="1402"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow40" id="BPMNEdge_flow40">
+        <omgdi:waypoint x="821" y="1402"></omgdi:waypoint>
+        <omgdi:waypoint x="736" y="1403"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow47" id="BPMNEdge_flow47">
+        <omgdi:waypoint x="1193" y="894"></omgdi:waypoint>
+        <omgdi:waypoint x="1193" y="934"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow48" id="BPMNEdge_flow48">
+        <omgdi:waypoint x="1090" y="852"></omgdi:waypoint>
+        <omgdi:waypoint x="1141" y="852"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow54" id="BPMNEdge_flow54">
+        <omgdi:waypoint x="875" y="381"></omgdi:waypoint>
+        <omgdi:waypoint x="741" y="380"></omgdi:waypoint>
+        <omgdi:waypoint x="740" y="425"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow60" id="BPMNEdge_flow60">
+        <omgdi:waypoint x="915" y="381"></omgdi:waypoint>
+        <omgdi:waypoint x="985" y="381"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow64" id="BPMNEdge_flow64">
+        <omgdi:waypoint x="1025" y="381"></omgdi:waypoint>
+        <omgdi:waypoint x="1138" y="380"></omgdi:waypoint>
+        <omgdi:waypoint x="1137" y="420"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow65" id="BPMNEdge_flow65">
+        <omgdi:waypoint x="1005" y="401"></omgdi:waypoint>
+        <omgdi:waypoint x="1004" y="663"></omgdi:waypoint>
+        <omgdi:waypoint x="1004" y="663"></omgdi:waypoint>
+        <omgdi:waypoint x="1004" y="663"></omgdi:waypoint>
+        <omgdi:waypoint x="1005" y="747"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow66" id="BPMNEdge_flow66">
+        <omgdi:waypoint x="985" y="767"></omgdi:waypoint>
+        <omgdi:waypoint x="887" y="767"></omgdi:waypoint>
+        <omgdi:waypoint x="888" y="832"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow67" id="BPMNEdge_flow67">
+        <omgdi:waypoint x="1137" y="739"></omgdi:waypoint>
+        <omgdi:waypoint x="1140" y="767"></omgdi:waypoint>
+        <omgdi:waypoint x="1025" y="767"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow79" id="BPMNEdge_flow79">
+        <omgdi:waypoint x="494" y="305"></omgdi:waypoint>
+        <omgdi:waypoint x="594" y="305"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow80" id="BPMNEdge_flow80">
+        <omgdi:waypoint x="699" y="305"></omgdi:waypoint>
+        <omgdi:waypoint x="895" y="305"></omgdi:waypoint>
+        <omgdi:waypoint x="895" y="361"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow81" id="BPMNEdge_flow81">
+        <omgdi:waypoint x="148" y="872"></omgdi:waypoint>
+        <omgdi:waypoint x="148" y="1096"></omgdi:waypoint>
+        <omgdi:waypoint x="190" y="1097"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow83" id="BPMNEdge_flow83">
+        <omgdi:waypoint x="168" y="852"></omgdi:waypoint>
+        <omgdi:waypoint x="216" y="852"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow84" id="BPMNEdge_flow84">
+        <omgdi:waypoint x="321" y="852"></omgdi:waypoint>
+        <omgdi:waypoint x="384" y="852"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow85" id="BPMNEdge_flow85">
+        <omgdi:waypoint x="148" y="735"></omgdi:waypoint>
+        <omgdi:waypoint x="148" y="832"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow88" id="BPMNEdge_flow88">
+        <omgdi:waypoint x="1141" y="961"></omgdi:waypoint>
+        <omgdi:waypoint x="1084" y="961"></omgdi:waypoint>
+        <omgdi:waypoint x="1085" y="1090"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow90" id="BPMNEdge_flow90">
+        <omgdi:waypoint x="506" y="526"></omgdi:waypoint>
+        <omgdi:waypoint x="460" y="526"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow91" id="BPMNEdge_flow91">
+        <omgdi:waypoint x="355" y="526"></omgdi:waypoint>
+        <omgdi:waypoint x="321" y="526"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow98" id="BPMNEdge_flow98">
+        <omgdi:waypoint x="148" y="410"></omgdi:waypoint>
+        <omgdi:waypoint x="148" y="334"></omgdi:waypoint>
+        <omgdi:waypoint x="216" y="334"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow99" id="BPMNEdge_flow99">
+        <omgdi:waypoint x="268" y="362"></omgdi:waypoint>
+        <omgdi:waypoint x="268" y="410"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow93" id="BPMNEdge_flow93">
+        <omgdi:waypoint x="268" y="465"></omgdi:waypoint>
+        <omgdi:waypoint x="268" y="499"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow101" id="BPMNEdge_flow101">
+        <omgdi:waypoint x="1187" y="1251"></omgdi:waypoint>
+        <omgdi:waypoint x="1187" y="1297"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow107" id="BPMNEdge_flow107">
+        <omgdi:waypoint x="564" y="1015"></omgdi:waypoint>
+        <omgdi:waypoint x="615" y="1016"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow108" id="BPMNEdge_flow108">
+        <omgdi:waypoint x="423" y="1097"></omgdi:waypoint>
+        <omgdi:waypoint x="511" y="1098"></omgdi:waypoint>
+        <omgdi:waypoint x="511" y="1043"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow124" id="BPMNEdge_flow124">
+        <omgdi:waypoint x="1065" y="1110"></omgdi:waypoint>
+        <omgdi:waypoint x="1037" y="1107"></omgdi:waypoint>
+        <omgdi:waypoint x="1037" y="1382"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow125" id="BPMNEdge_flow125">
+        <omgdi:waypoint x="1085" y="1402"></omgdi:waypoint>
+        <omgdi:waypoint x="1057" y="1402"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow126" id="BPMNEdge_flow126">
+        <omgdi:waypoint x="1017" y="1402"></omgdi:waypoint>
+        <omgdi:waypoint x="926" y="1402"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow128" id="BPMNEdge_flow128">
+        <omgdi:waypoint x="720" y="1016"></omgdi:waypoint>
+        <omgdi:waypoint x="738" y="1014"></omgdi:waypoint>
+        <omgdi:waypoint x="738" y="1149"></omgdi:waypoint>
+        <omgdi:waypoint x="775" y="1147"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape bpmnElement="CancelBoundarySignal" id="BPMNShape_CancelBoundarySignal">
+        <omgdc:Bounds height="30" width="30" x="841" y="1548"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="processCancelledMailTask" id="BPMNShape_processCancelledMailTask">
+        <omgdc:Bounds height="87" width="105" x="1042" y="1760"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="cancelDescriptionUserTask" id="BPMNShape_cancelDescriptionUserTask">
+        <omgdc:Bounds height="55" width="105" x="1042" y="1630"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="endSucess" id="BPMNShape_endSucess">
+        <omgdc:Bounds height="35" width="35" x="675" y="1612"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="endCancelled" id="BPMNShape_endCancelled">
+        <omgdc:Bounds height="35" width="35" x="1199" y="1786"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="subprocess2" id="BPMNShape_subprocess2" isExpanded="true">
+        <omgdc:Bounds height="271" width="205" x="749" y="1620"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="unblockErrorUserTask" id="BPMNShape_unblockErrorUserTask">
+        <omgdc:Bounds height="55" width="105" x="842" y="1820"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="exclusivegateway14" id="BPMNShape_exclusivegateway14">
+        <omgdc:Bounds height="40" width="40" x="792" y="1770"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="endevent11" id="BPMNShape_endevent11">
+        <omgdc:Bounds height="35" width="35" x="758" y="1840"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="unblockWS3" id="BPMNShape_unblockWS3">
+        <omgdc:Bounds height="55" width="105" x="760" y="1680"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="startevent9" id="BPMNShape_startevent9">
+        <omgdc:Bounds height="35" width="35" x="900" y="1640"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="flow129" id="BPMNEdge_flow129">
+        <omgdi:waypoint x="812" y="1810"></omgdi:waypoint>
+        <omgdi:waypoint x="812" y="1846"></omgdi:waypoint>
+        <omgdi:waypoint x="842" y="1847"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow130" id="BPMNEdge_flow130">
+        <omgdi:waypoint x="792" y="1790"></omgdi:waypoint>
+        <omgdi:waypoint x="775" y="1788"></omgdi:waypoint>
+        <omgdi:waypoint x="775" y="1840"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow96" id="BPMNEdge_flow96">
+        <omgdi:waypoint x="812" y="1735"></omgdi:waypoint>
+        <omgdi:waypoint x="812" y="1770"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow131" id="BPMNEdge_flow131">
+        <omgdi:waypoint x="894" y="1820"></omgdi:waypoint>
+        <omgdi:waypoint x="894" y="1710"></omgdi:waypoint>
+        <omgdi:waypoint x="865" y="1707"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow133" id="BPMNEdge_flow133">
+        <omgdi:waypoint x="900" y="1657"></omgdi:waypoint>
+        <omgdi:waypoint x="813" y="1657"></omgdi:waypoint>
+        <omgdi:waypoint x="812" y="1680"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape bpmnElement="CancelBoundarySignal2" id="BPMNShape_CancelBoundarySignal2">
+        <omgdc:Bounds height="30" width="30" x="829" y="1880"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="flow127" id="BPMNEdge_flow127">
+        <omgdi:waypoint x="843" y="1192"></omgdi:waypoint>
+        <omgdi:waypoint x="843" y="1207"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow106" id="BPMNEdge_flow106">
+        <omgdi:waypoint x="264" y="1012"></omgdi:waypoint>
+        <omgdi:waypoint x="264" y="1034"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow112" id="BPMNEdge_flow112">
+        <omgdi:waypoint x="264" y="1089"></omgdi:waypoint>
+        <omgdi:waypoint x="264" y="1117"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow115" id="BPMNEdge_flow115">
+        <omgdi:waypoint x="354" y="1157"></omgdi:waypoint>
+        <omgdi:waypoint x="354" y="1060"></omgdi:waypoint>
+        <omgdi:waypoint x="317" y="1061"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow113" id="BPMNEdge_flow113">
+        <omgdi:waypoint x="244" y="1137"></omgdi:waypoint>
+        <omgdi:waypoint x="219" y="1136"></omgdi:waypoint>
+        <omgdi:waypoint x="219" y="1187"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow114" id="BPMNEdge_flow114">
+        <omgdi:waypoint x="264" y="1157"></omgdi:waypoint>
+        <omgdi:waypoint x="267" y="1184"></omgdi:waypoint>
+        <omgdi:waypoint x="302" y="1184"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow116" id="BPMNEdge_flow116">
+        <omgdi:waypoint x="843" y="1012"></omgdi:waypoint>
+        <omgdi:waypoint x="843" y="1037"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow117" id="BPMNEdge_flow117">
+        <omgdi:waypoint x="843" y="1114"></omgdi:waypoint>
+        <omgdi:waypoint x="843" y="1137"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow118" id="BPMNEdge_flow118">
+        <omgdi:waypoint x="823" y="1227"></omgdi:waypoint>
+        <omgdi:waypoint x="808" y="1225"></omgdi:waypoint>
+        <omgdi:waypoint x="808" y="1277"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow120" id="BPMNEdge_flow120">
+        <omgdi:waypoint x="933" y="1249"></omgdi:waypoint>
+        <omgdi:waypoint x="933" y="1076"></omgdi:waypoint>
+        <omgdi:waypoint x="896" y="1075"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow121" id="BPMNEdge_flow121">
+        <omgdi:waypoint x="843" y="1247"></omgdi:waypoint>
+        <omgdi:waypoint x="843" y="1285"></omgdi:waypoint>
+        <omgdi:waypoint x="881" y="1284"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow74" id="BPMNEdge_flow74">
+        <omgdi:waypoint x="1147" y="1803"></omgdi:waypoint>
+        <omgdi:waypoint x="1199" y="1803"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow73" id="BPMNEdge_flow73">
+        <omgdi:waypoint x="1094" y="1685"></omgdi:waypoint>
+        <omgdi:waypoint x="1094" y="1760"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow7" id="BPMNEdge_flow7">
+        <omgdi:waypoint x="906" y="547"></omgdi:waypoint>
+        <omgdi:waypoint x="906" y="583"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow41" id="BPMNEdge_flow41">
+        <omgdi:waypoint x="551" y="519"></omgdi:waypoint>
+        <omgdi:waypoint x="584" y="519"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow43" id="BPMNEdge_flow43">
+        <omgdi:waypoint x="689" y="519"></omgdi:waypoint>
+        <omgdi:waypoint x="724" y="519"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow44" id="BPMNEdge_flow44">
+        <omgdi:waypoint x="829" y="519"></omgdi:waypoint>
+        <omgdi:waypoint x="854" y="519"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow22" id="BPMNEdge_flow22">
+        <omgdi:waypoint x="725" y="855"></omgdi:waypoint>
+        <omgdi:waypoint x="760" y="855"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow45" id="BPMNEdge_flow45">
+        <omgdi:waypoint x="585" y="855"></omgdi:waypoint>
+        <omgdi:waypoint x="620" y="855"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow46" id="BPMNEdge_flow46">
+        <omgdi:waypoint x="445" y="855"></omgdi:waypoint>
+        <omgdi:waypoint x="480" y="855"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow35" id="BPMNEdge_flow35">
+        <omgdi:waypoint x="1170" y="1454"></omgdi:waypoint>
+        <omgdi:waypoint x="1140" y="1454"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow49" id="BPMNEdge_flow49">
+        <omgdi:waypoint x="1136" y="1354"></omgdi:waypoint>
+        <omgdi:waypoint x="1170" y="1354"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow50" id="BPMNEdge_flow50">
+        <omgdi:waypoint x="1222" y="1382"></omgdi:waypoint>
+        <omgdi:waypoint x="1222" y="1427"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow55" id="BPMNEdge_flow55">
+        <omgdi:waypoint x="1152" y="481"></omgdi:waypoint>
+        <omgdi:waypoint x="1152" y="506"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow56" id="BPMNEdge_flow56">
+        <omgdi:waypoint x="1152" y="561"></omgdi:waypoint>
+        <omgdi:waypoint x="1152" y="596"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow58" id="BPMNEdge_flow58">
+        <omgdi:waypoint x="1152" y="668"></omgdi:waypoint>
+        <omgdi:waypoint x="1152" y="686"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow68" id="BPMNEdge_flow68">
+        <omgdi:waypoint x="155" y="37"></omgdi:waypoint>
+        <omgdi:waypoint x="344" y="36"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow86" id="BPMNEdge_flow86">
+        <omgdi:waypoint x="449" y="36"></omgdi:waypoint>
+        <omgdi:waypoint x="707" y="36"></omgdi:waypoint>
+        <omgdi:waypoint x="693" y="210"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow94" id="BPMNEdge_flow94">
+        <omgdi:waypoint x="693" y="1561"></omgdi:waypoint>
+        <omgdi:waypoint x="692" y="1612"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow97" id="BPMNEdge_flow97">
+        <omgdi:waypoint x="856" y="1578"></omgdi:waypoint>
+        <omgdi:waypoint x="851" y="1620"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow132" id="BPMNEdge_flow132">
+        <omgdi:waypoint x="954" y="1755"></omgdi:waypoint>
+        <omgdi:waypoint x="998" y="1753"></omgdi:waypoint>
+        <omgdi:waypoint x="998" y="1656"></omgdi:waypoint>
+        <omgdi:waypoint x="1042" y="1657"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow134" id="BPMNEdge_flow134">
+        <omgdi:waypoint x="844" y="1910"></omgdi:waypoint>
+        <omgdi:waypoint x="846" y="1928"></omgdi:waypoint>
+        <omgdi:waypoint x="719" y="1928"></omgdi:waypoint>
+        <omgdi:waypoint x="719" y="1754"></omgdi:waypoint>
+        <omgdi:waypoint x="749" y="1755"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</definitions>
