@@ -2,6 +2,7 @@ package cl.alma.scrw.bpmn.forms;
 
 import java.io.IOException;
 import java.io.StringReader;
+import java.util.ArrayList;
 import java.util.Map;
 
 
@@ -77,10 +78,19 @@ public class ReviewPageForm extends AbstractUserTaskForm {
 		if( propertyValue == null )
 			return;
 		
-		if ( propertyId.equals("incFound") ) 
+		ArrayList<String> erroresVarList = new ArrayList<String>();
+		erroresVarList.add("incFound");
+		erroresVarList.add("blockWS");
+		erroresVarList.add("unblockAfterCheck");
+		erroresVarList.add("changesWS");
+		erroresVarList.add("applyWS");
+		erroresVarList.add("unblockFinishCancel");
+		
+		if( erroresVarList.contains( propertyId ) )
 		{
 			error.setReadOnly( false );
-			error.setValue( error.getValue() + readXmlError( propertyValue ) );
+			if( ! propertyValue.equals("SUCCESS") )
+				error.setValue( error.getValue() + readXmlError( propertyValue ) );
 			error.setReadOnly( true );
 			return;
 		}
@@ -88,41 +98,6 @@ public class ReviewPageForm extends AbstractUserTaskForm {
 		{
 			request.setValue(propertyValue);
 			request.setReadOnly( true );
-			return;
-		}
-		else if ( propertyId.equals("blockWS") )
-		{
-			error.setReadOnly( false );
-			error.setValue( error.getValue() + readXmlError( propertyValue ) );
-			error.setReadOnly( true );
-			return;
-		}
-		else if ( propertyId.equals("unblockAfterCheck") )
-		{
-			error.setReadOnly( false );
-			error.setValue( error.getValue() + readXmlError( propertyValue ) );
-			error.setReadOnly( true );
-			return;
-		}
-		else if ( propertyId.equals("changesWS") )
-		{
-			error.setReadOnly( false );
-			error.setValue( error.getValue() + readXmlError( propertyValue ) );
-			error.setReadOnly( true );
-			return;
-		}
-		else if ( propertyId.equals("applyWS") )
-		{
-			error.setReadOnly( false );
-			error.setValue( error.getValue() + readXmlError( propertyValue ) );
-			error.setReadOnly( true );
-			return;
-		}
-		else if ( propertyId.equals("unblockFinishCancel") )
-		{
-			error.setReadOnly( false );
-			error.setValue( error.getValue() + readXmlError( propertyValue ) );
-			error.setReadOnly( true );
 			return;
 		}
 	}
@@ -158,16 +133,16 @@ public class ReviewPageForm extends AbstractUserTaskForm {
 			} 
 			catch (ParserConfigurationException e) 
 			{
-				return "";
+				return "ParserConfigurationException at ReviewPageForm\n datos: "+xmlRecords;
 			}
-			catch (SAXException e) 
+			catch ( SAXException e ) 
 			{
-				return "";
+				return "SAXException at ReviewPageForm\n datos: "+xmlRecords;
 			}
 			catch (IOException e) 
 			{
 				
-				return "";
+				return "IOException at ReviewPageForm\n datos: "+xmlRecords;
 			}
 		    
 	}
